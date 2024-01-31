@@ -1,4 +1,5 @@
 import astropy.constants as const
+import astropy.units as u
 import numpy as np
 import math
 import os
@@ -20,6 +21,8 @@ import sys
 #sys.path.append('../../SED_sgrb2/SED_fit')
 #from fit import extract_dimensions
 
+'''3D model with layered AMR'''
+
 class model_setup_3Dspher:
     def __init__(self,rho0,prho,nphot=100000,laynr=2):
         self.laynr = laynr
@@ -27,9 +30,9 @@ class model_setup_3Dspher:
         #
         # Star parameters
         #
-        self.mstar    = 30*ms
-        self.rstar    = 13.4*rs
-        self.tstar    = 5*ts
+        self.mstar    = 30*const.M_sun # in kg, check if correct units
+        self.rstar    = 13.4*const.R_sun # in m , check units
+        self.tstar    = 30000*u.K #in K 
         self.pstar    = np.array([0.,0.,0.]) #position in cartesian coords
         #
         # Wavelengths - this eventually needs a function to calculate it based of start and endpoint and maybe number of intervals.
@@ -42,7 +45,7 @@ class model_setup_3Dspher:
         n12      = 100
         n23      = 100
         n34      = 100
-        n45	 = 100
+        n45	     = 100
         lam12    = np.logspace(np.log10(lam1),np.log10(lam2),n12,endpoint=False)
         lam23    = np.logspace(np.log10(lam2),np.log10(lam3),n23,endpoint=False)
         lam34    = np.logspace(np.log10(lam3),np.log10(lam4),n34,endpoint=False)
@@ -68,9 +71,15 @@ class model_setup_3Dspher:
         yc_ls    = []
         zc_ls    = []
         for i in range(self.laynr):
-            xi_ls.append(np.linspace(i*-self.sizex/self.laynr,i*self.sizex/self.laynr,i*self.lnnx+1))
-            yi_ls.append(np.linspace(i*-self.sizey/self.laynr,i*self.sizey/self.laynr,i*self.lnny+1))
-            zi_ls.append(np.linspace(i*-self.sizez/self.laynr,i*self.sizez/self.laynr,i*self.lnnz+1))
+            xi_l=np.linspace(i*-self.sizex/self.laynr,i*self.sizex/self.laynr,i*self.lnnx+1)
+            yi_l=np.linspace(i*-self.sizey/self.laynr,i*self.sizey/self.laynr,i*self.lnny+1)
+            zi_l=np.linspace(i*-self.sizez/self.laynr,i*self.sizez/self.laynr,i*self.lnnz+1)
+            xi_ls.append(xi_l)
+            yi_ls.append(yi_l)
+            zi_ls.append(zi_l)
+            xc_ls.append(0.5 * (xi_l[0:self.nx]+xi_l[1:self.nx+1]))
+            yc_ls.append(0.5 * (yi_l[0:self.yx]+yi_l[1:self.yx+1]))
+            zc_ls.append(0.5 * (zi_l[0:self.zx]+zi_l[1:self.zx+1]))
 
 
 
