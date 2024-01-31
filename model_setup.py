@@ -13,25 +13,30 @@ from spectral_cube import Projection
 import radio_beam
 from radio_beam import Beam
 from astropy.io import fits
-from radmc3dPy.image import *    
-from radmc3dPy.analyze import *  
-from radmc3dPy.natconst import * 
+#from radmc3dPy.image import *    
+#from radmc3dPy.analyze import *  
+#from radmc3dPy.natconst import * 
 from astropy.wcs import WCS
 import sys
 #sys.path.append('../../SED_sgrb2/SED_fit')
 #from fit import extract_dimensions
 
-'''3D model with layered AMR'''
+'''3D model with layered AMR only two layers'''
 
 class model_setup_3Dspher:
-    def __init__(self,rho0,prho,nphot=100000,laynr=2):
-        self.laynr = laynr
+    def __init__(self,rho0,prho,size=5000,nphot=100000,radius=3000*const.au.to("cm")):
+
+        au=const.au.to("cm")
+
+        self.sizex = size *au
+        self.sizey = size *au
+        self.sizez = size *au
 
         #
         # Star parameters
         #
-        self.mstar    = 30*const.M_sun # in kg, check if correct units
-        self.rstar    = 13.4*const.R_sun # in m , check units
+        self.mstar    = 30*const.M_sun.to("g") # in kg, check if correct units
+        self.rstar    = 13.4*const.R_sun.to("cm") # in m , check units
         self.tstar    = 30000*u.K #in K 
         self.pstar    = np.array([0.,0.,0.]) #position in cartesian coords
         #
@@ -57,30 +62,62 @@ class model_setup_3Dspher:
         self.nx = 100  # 
         self.ny = 100  # 
         self.nz = 100  # 
-        self.laynlev = 2  # I THINK THIS IS HOW MUCH FINER IT IS
+        #
+        # The layer patch
+        #
+        self.laynlev  = 1
+        self.laynr    = 1
+        self.lix      = self.nx//4+1
+        self.liy      = self.ny//4+1
+        self.liz      = self.nz//4+1
+        self.lnx      = self.nx//2
+        self.lny      = self.ny//2
+        self.lnz      = self.nz//2
+        self.lnnx     = self.lnx*2
+        self.lnny     = self.lny*2
+        self.lnnz     = self.lnz*2
 
-        # Initialize additional parameters based on laynr
-        self.initialize_parameters()
+        self.xi       = np.linspace(-self.sizex,self.sizex,self.nx+1)
+        self.yi       = np.linspace(-self.sizey,self.sizey,self.ny+1)
+        self.zi       = np.linspace(-self.sizez,self.sizez,self.nz+1)
+        self.xc       = 0.5 * ( self.xi[0:self.nx] + self.xi[1:self.nx+1] )
+        self.yc       = 0.5 * ( self.yi[0:self.ny] + self.yi[1:self.ny+1] )
+        self.zc       = 0.5 * ( self.zi[0:self.nz] + self.zi[1:self.nz+1] )
 
-    def initialize_parameters(self):
-        # Initialize parameters based on the number of layers.
-        xi_ls    = []
-        yi_ls    = []
-        zi_ls    = []
-        xc_ls    = []
-        yc_ls    = []
-        zc_ls    = []
-        for i in range(self.laynr):
-            xi_l=np.linspace(i*-self.sizex/self.laynr,i*self.sizex/self.laynr,i*self.lnnx+1)
-            yi_l=np.linspace(i*-self.sizey/self.laynr,i*self.sizey/self.laynr,i*self.lnny+1)
-            zi_l=np.linspace(i*-self.sizez/self.laynr,i*self.sizez/self.laynr,i*self.lnnz+1)
-            xi_ls.append(xi_l)
-            yi_ls.append(yi_l)
-            zi_ls.append(zi_l)
-            xc_ls.append(0.5 * (xi_l[0:self.nx]+xi_l[1:self.nx+1]))
-            yc_ls.append(0.5 * (yi_l[0:self.yx]+yi_l[1:self.yx+1]))
-            zc_ls.append(0.5 * (zi_l[0:self.zx]+zi_l[1:self.zx+1]))
+        #
+        # Make the coordinates of the layer patch of refinement
+        #
+        self.xi_l1    = np.linspace(-self.sizex/2,self.sizex/2,self.lnnx+1)
+        self.yi_l1    = np.linspace(-self.sizey/2,self.sizey/2,self.lnny+1)
+        self.zi_l1    = np.linspace(-self.sizez/2,self.sizez/2,self.lnnz+1)
+        self.xc_l1    = 0.5 * ( self.xi_l1[:-1] + self.xi_l1[1:] )
+        self.yc_l1    = 0.5 * ( self.yi_l1[:-1] + self.yi_l1[1:] )
+        self.zc_l1    = 0.5 * ( self.zi_l1[:-1] + self.zi_l1[1:] )
 
+
+        self.prho     = prho   
+        self.rr = self.xc
+        self.rhod = rho0 * ((self.rr) / au) ** self.prho
+
+        #
+        # Make the dust density model
+        #
+        self.radius = radius
+        qq       = np.meshgrid(self.xc,self.yc,self.zc,indexing='ij')
+        xx       = qq[0]
+        yy       = qq[1]
+        zz       = qq[2]
+        rr       = np.sqrt(xx**2+yy**2+zz**2)
+        self.rhod     = self.rho0 * np.exp(-(rr**2/self.radius**2)/2.0)
+        #
+        # Make the dust density model in the layer
+        #
+        qq_l1    = np.meshgrid(self.xc_l1,self.yc_l1,self.zc_l1,indexing='ij')
+        xx_l1    = qq_l1[0]
+        yy_l1    = qq_l1[1]
+        zz_l1    = qq_l1[2]
+        rr_l1    = np.sqrt(xx_l1**2+yy_l1**2+zz_l1**2)
+        self.rhod_l1  = self.rho0 * np.exp(-(rr_l1**2/self.radius**2)/2.0)
 
 
 
