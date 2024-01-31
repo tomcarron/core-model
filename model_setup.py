@@ -290,3 +290,111 @@ class model_setup_3Dspher:
         plt.show()
         plt.savefig('density.png')
 
+
+def smooth_fits_image(input_file, output_file, target_resolution_major, target_resolution_minor):
+    '''
+    smooths an image to a target resolution.
+    '''
+    # Open the input FITS file
+    hdul = fits.open(input_file)
+    data = hdul[0].data
+
+    # Get the current beam resolution
+    current_resolution_major = hdul[0].header['BMAJ']  # Assumes major axis beam resolution is stored in BMAJ keyword
+    current_resolution_minor = hdul[0].header['BMIN']  # Assumes minor axis beam resolution is stored in BMIN keyword
+
+    # Compute the kernel width ratios
+    sigma_ratio_major = target_resolution_major / current_resolution_major
+    sigma_ratio_minor = target_resolution_minor / current_resolution_minor
+
+    # Create a Gaussian kernel for smoothing
+    kernel = Gaussian2DKernel([sigma_ratio_major, sigma_ratio_minor])
+
+    # Convolve the data with the kernel
+    smoothed_data = convolve(data, kernel)
+
+    # Update the header with the new beam resolution
+    hdul[0].header['BMAJ'] = target_resolution_major
+    hdul[0].header['BMIN'] = target_resolution_minor
+
+    # Save the smoothed data to a new FITS file
+    hdul[0].data = smoothed_data
+    hdul.writeto(output_file, overwrite=True)
+
+    # Close the input FITS file
+    hdul.close()
+
+
+def process_radmc_image(input_fits, output_fits,beam_size_arcsec,overwrite=False):
+    hdulist = fits.open(input_fits)
+    data = extract_dimensions(hdulist[0].data)
+    header = hdulist[0].header
+    wcs = WCS(header)
+
+    # Extract pixel size information from the WCS. Pixel sizes are given in degrees
+    pixel_size_x, pixel_size_y = wcs.pixel_scale_matrix[1, 1], wcs.pixel_scale_matrix[0, 0]
+
+    # Convert beam size from arcseconds to pixels
+    beam_size_x = abs(int(beam_size_arcsec / 3600 / pixel_size_x))
+    beam_size_y = abs(int(beam_size_arcsec / 3600 / pixel_size_y))
+
+    #check if beam sizes are odd *must be odd for kernel
+    if beam_size_x % 2 == 0:
+        beam_size_x+=1
+    if beam_size_y % 2 == 0:
+        beam_size_y+=1
+
+    # Calculate the standard deviation of the Gaussian kernel
+    beam_stddev_x = beam_size_x / (2 * np.sqrt(2 * np.log(2)))
+
+    print(beam_size_x,beam_size_y)
+    # Create a 2D Gaussian kernel
+    kernel = Gaussian2DKernel(beam_stddev_x, x_size=int(beam_size_x), y_size=int(beam_size_y))
+
+    # Convolve the data with the Gaussian kernel
+    smoothed_data = convolve(data, kernel, normalize_kernel=True)
+
+    # Scale the entire image to convert pixel values from Jy/pixel to Jy/beam
+    #conversion_factor = ((pixel_size_x/3600) * (pixel_size_y/3600) ) / (np.pi * beam_size_arcsec**2)
+    #smoothed_data *= conversion_factor
+
+    # Update the header to reflect the new units and beam information
+    header['BUNIT'] = 'Jy/beam'
+    header['BMAJ'] = beam_size_arcsec
+    header['BMIN'] = beam_size_arcsec
+
+    # Save the smoothed data to a new FITS file
+    fits.writeto(output_fits, smoothed_data, header, overwrite=overwrite)
+
+    print(f"Smoothing completed. Result saved to: {output_fits}")
+
+def process_radmc_tausurf_image(input_fits, output_fits,overwrite=False):
+    hdulist = fits.open(input_fits)
+    data = extract_dimensions(hdulist[0].data)
+    header = hdulist[0].header
+    wcs = WCS(header)
+
+    # Update the header to reflect the new units and beam information
+    header['BUNIT'] = '[cm]'
+
+    # Save the smoothed data to a new FITS file
+    fits.writeto(output_fits, data, header, overwrite=overwrite)
+
+    print(f" Result saved to: {output_fits}")
+    
+
+#function which returns the two largest dimensions of an array
+def extract_dimensions(array):
+    if array.ndim <= 2:
+        return array
+    else:
+        dimensions_to_remove = np.where(np.array(array.shape) < 2)[0]
+        modified_array = np.squeeze(array, axis=tuple(dimensions_to_remove))
+        return modified_array
+    
+
+def read_image():
+    im = readImage()
+    #data = np.squeeze(im.image[:, ::-1, 0].T)
+    data = im.image
+
