@@ -13,9 +13,9 @@ from spectral_cube import Projection
 import radio_beam
 from radio_beam import Beam
 from astropy.io import fits
-#from radmc3dPy.image import *    
-#from radmc3dPy.analyze import *  
-#from radmc3dPy.natconst import * 
+from radmc3dPy.image import *    
+from radmc3dPy.analyze import *  
+from radmc3dPy.natconst import * 
 from astropy.wcs import WCS
 import sys
 #sys.path.append('../../SED_sgrb2/SED_fit')
@@ -24,9 +24,11 @@ import sys
 '''3D model with layered AMR only two layers'''
 
 class model_setup_3Dspher:
-    def __init__(self,rho0,prho,size=5000,nphot=100000,radius=3000*const.au.to("cm")):
+    def __init__(self,rho0,prho,size=5000,nphot=100000,radius=(3000*const.au).to("cm").value):
 
-        au=const.au.to("cm")
+        au=(const.au).to("cm").value
+
+        self.nphot=nphot
 
         self.sizex = size *au
         self.sizey = size *au
@@ -35,9 +37,9 @@ class model_setup_3Dspher:
         #
         # Star parameters
         #
-        self.mstar    = 30*const.M_sun.to("g") # in kg, check if correct units
-        self.rstar    = 13.4*const.R_sun.to("cm") # in m , check units
-        self.tstar    = 30000*u.K #in K 
+        self.mstar    = 30*(const.M_sun).to("g").value # in kg, check if correct units
+        self.rstar    = 13.4*(const.R_sun).to("cm").value  # in m , check units
+        self.tstar    = 30000 #in K 
         self.pstar    = np.array([0.,0.,0.]) #position in cartesian coords
         #
         # Wavelengths - this eventually needs a function to calculate it based of start and endpoint and maybe number of intervals.
@@ -94,7 +96,7 @@ class model_setup_3Dspher:
         self.yc_l1    = 0.5 * ( self.yi_l1[:-1] + self.yi_l1[1:] )
         self.zc_l1    = 0.5 * ( self.zi_l1[:-1] + self.zi_l1[1:] )
 
-
+        self.rho0 = rho0
         self.prho     = prho   
         self.rr = self.xc
         self.rhod = rho0 * ((self.rr) / au) ** self.prho
