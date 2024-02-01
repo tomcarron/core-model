@@ -10,7 +10,12 @@ test.add_gaussian_variations(0.2)
 test.write_input(mrw=True)
 
 #run model
-test.calculate_model()
+test.calculate_model(ncores=28)
 
-wls=[450] #micron
+#sed
+test.sed()
+
+wls=[450,850,1000,2000,3000] #micron
+#these functions take some time and could benefit from multithreading too.
 test.make_synth_maps(wls)
+test.make_tau_surface(wls)

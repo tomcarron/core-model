@@ -40,6 +40,7 @@ class model_setup_3Dspher:
         self.mstar    = 30*(const.M_sun).to("g").value # in kg, check if correct units
         self.rstar    = 13.4*(const.R_sun).to("cm").value  # in m , check units
         self.tstar    = 30000 #in K 
+        self.ls       = (const.L_sun).to("erg/s").value  #solar luminosity
         self.pstar    = np.array([0.,0.,0.]) #position in cartesian coords
         #
         # Wavelengths - this eventually needs a function to calculate it based of start and endpoint and maybe number of intervals.
@@ -203,9 +204,12 @@ class model_setup_3Dspher:
             if mrw:
                 f.write('modified_random_walk = 1')
 
-    def calculate_model(self):
+    def calculate_model(self,ncores=None):
         t0 = time.time()
-        os.system('radmc3d mctherm')
+        if ncores is None:
+            os.system('radmc3d mctherm')
+        else:
+            os.system('radmc3d mctherm setthreads '+str(ncores))
         #os.system('radmc3d sed')
         t1 = time.time()
 
@@ -217,6 +221,7 @@ class model_setup_3Dspher:
         
     def sed(self):
         #plot sed
+        os.system('radmc3d sed')
         s    = readSpectrum()
         plt.figure()
         lammic = s[:,0]
@@ -230,7 +235,8 @@ class model_setup_3Dspher:
         plt.xlabel(r'$\lambda$ [$\mu$m]')
         plt.ylabel(r'$\nu L_{\nu}$ [$L_{\odot}$]')
         plt.axis()
-        plt.show()
+        plt.savefig('sed.png',dpi=200,bbox_inches='tight')
+        #plt.show()
     
     def make_synth_maps(self,wls):
         t0 = time.time()
@@ -254,7 +260,7 @@ class model_setup_3Dspher:
             os.system("radmc3d tausurf 1.0 lambda "+str(wl))
             im   = readImage()
             data = np.squeeze(im.image[:, ::-1, 0].T)
-            plotImage(im,arcsec=True,dpc=8340.)
+            #plotImage(im,arcsec=True,dpc=8340.)
             im.writeFits('tau_surf_'+str(wl)+'.fits')
             wcs = WCS(fits.getheader('tau_surf_'+str(wl)+'.fits'))
             newhdu = fits.PrimaryHDU(data,wcs.to_header())
@@ -297,7 +303,9 @@ class model_setup_3Dspher:
         plt.show()
         plt.savefig('density.png')
 
-
+'''
+Support functions below
+'''
 def smooth_fits_image(input_file, output_file, target_resolution_major, target_resolution_minor):
     '''
     smooths an image to a target resolution.
