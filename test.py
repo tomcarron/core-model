@@ -13,9 +13,13 @@ test.write_input(mrw=True)
 test.calculate_model(ncores=28)
 
 #sed
-test.sed()
+#test.sed()
+
+#density profile
+test.density_profile()
+test.temperature_profile()
 
 wls=[450,850,1000,2000,3000] #micron
 #these functions take some time and could benefit from multithreading too.
-test.make_synth_maps(wls)
-test.make_tau_surface(wls)
+#test.make_synth_maps(wls)
+#test.make_tau_surface(wls)

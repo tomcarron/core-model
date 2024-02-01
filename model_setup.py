@@ -250,16 +250,8 @@ class model_setup_3Dspher:
             #plotImage(cim, arcsec=True, dpc=8340., cmap=plb.cm.gist_heat)
             #cim.writeFits('model'+str(wl)+'.fits', dpc=8340.)
             #plt.show()
-        t1 = time.time()
-        total=t1-t0
-        print("Calculating the images cost: "+str(total)+" s")
-        #plot synthetic maps at each wavelength specified.
-
-    def make_tau_surface(self,wls):
-        for wl in wls:
-            os.system("radmc3d tausurf 1.0 lambda "+str(wl))
-            im   = readImage()
-            data = np.squeeze(im.image[:, ::-1, 0].T)
+            t1 = time.time()
+            total=t1-t0
             #plotImage(im,arcsec=True,dpc=8340.)
             im.writeFits('tau_surf_'+str(wl)+'.fits')
             wcs = WCS(fits.getheader('tau_surf_'+str(wl)+'.fits'))
@@ -291,17 +283,42 @@ class model_setup_3Dspher:
 
     
     def density_profile(self):
-        #plot density vs radius
-        au=const.au.cgs.value # AU [cm]
-        a    = readData(ddens=True,binary=False)
-        r    = a.grid.x[:]
-        density = a.rhodust[:,0,0,0]
-        plt.figure(1)
-        plt.plot(r/au,density)
-        plt.xlabel('r [au]')
-        plt.ylabel(r'$\rho_{dust}$ [$g/cm^3$]')
-        plt.show()
-        plt.savefig('density.png')
+        plt.figure()
+        plt.plot(self.rr / (const.au).to("cm").value, self.rhod[50,50,:], label='Full Grid')
+        plt.plot(self.rho0 * np.exp(-(self.rr**2 / self.radius**2) / 2.0), label='Analytical Profile')
+        plt.xlabel('Radius (AU)')
+        plt.ylabel('Density (g/cm^3)')
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.legend()
+        plt.savefig('radial_density_profile.png', dpi=200, bbox_inches='tight')
+
+    def temperature_profile(self):
+        plt.figure()
+        #Reading dust density
+        temperature=read_dust_temperature()[50,50,:]
+        #Reading dust temperature
+        plt.plot(self.rr / (const.au).to("cm").value, temperature, label='Temperature Profile')
+        plt.xlabel('Radius (AU)')
+        plt.ylabel('Temperature (K)')
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.legend()
+        plt.savefig('temperature_profile.png', dpi=200, bbox_inches='tight')
+
+    
+def read_dust_temperature(filename='dust_temperature.dat', nx=100, ny=100, nz=100):
+    # Read the data from the file
+    with open(filename, 'r') as f:
+        # Skip the first three lines (header)
+        for _ in range(3):
+            next(f)
+
+        # Read the temperature values and reshape them into a 3D array
+        temperature_data = np.fromfile(f, dtype=float, count=nx * ny * nz, sep='\n')
+        temperature_data = temperature_data.reshape((nx, ny, nz), order='F')
+
+    return temperature_data
 
 '''
 Support functions below
