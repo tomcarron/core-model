@@ -1,7 +1,5 @@
 # core-model
 
-Feel free to clone the repo, start a new branch, make changes and start a pull request :)
-
 Working installations of RADMC-3D 2.0 and radmc3dpy are required.
 
 #The model
