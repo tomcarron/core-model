@@ -24,7 +24,7 @@ import sys
 '''3D model with layered AMR only two layers'''
 
 class model_setup_3Dspher:
-    def __init__(self,rho0,prho,size=5000,nphot=100000,radius=(3000*const.au).to("cm").value):
+    def __init__(self,rho0,prho,size=5000,nphot=100000,radius=3000):
 
         au=(const.au).to("cm").value
 
@@ -104,7 +104,7 @@ class model_setup_3Dspher:
         #
         # Make the dust density model
         #
-        self.radius = radius
+        self.radius = radius * au
         qq       = np.meshgrid(self.xc,self.yc,self.zc,indexing='ij')
         xx       = qq[0]
         yy       = qq[1]
@@ -120,6 +120,13 @@ class model_setup_3Dspher:
         zz_l1    = qq_l1[2]
         rr_l1    = np.sqrt(xx_l1**2+yy_l1**2+zz_l1**2)
         self.rhod_l1  = self.rho0 * np.exp(-(rr_l1**2/self.radius**2)/2.0)
+
+    def add_gaussian_variations(self, std_deviation):
+        # Generate Gaussian variations for each voxel
+        gaussian_variations = np.random.normal(0, std_deviation*self.rho0, size=(self.nx, self.ny, self.nz))
+
+        # Apply variations to the density
+        self.rhod += gaussian_variations
 
 
 
